@@ -1,0 +1,3 @@
+<launch>
+  <node name="gopigo3" pkg="gopigo3_node" type="gopigo3_node.py" output="screen" />
+</launch>
