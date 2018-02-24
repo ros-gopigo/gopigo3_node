@@ -34,6 +34,8 @@ class Robot:
         rospy.init_node("gopigo3")
 
         # subscriber
+        rospy.Subscriber("motor/dps/left", Int16, lambda msg: self.g.set_motor_dps(self.ML, msg.data))
+        rospy.Subscriber("motor/dps/right", Int16, lambda msg: self.g.set_motor_dps(self.MR, msg.data))
         rospy.Subscriber("motor/pwm/left", Int8, lambda msg: self.g.set_motor_power(self.ML, msg.data))
         rospy.Subscriber("motor/pwm/right", Int8, lambda msg: self.g.set_motor_power(self.MR, msg.data))
         rospy.Subscriber("motor/position/left", Int16, lambda msg: self.g.set_motor_position(self.ML, msg.data))
