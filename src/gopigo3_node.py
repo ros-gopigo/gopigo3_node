@@ -11,7 +11,7 @@ except IOError as e:
     sys.exit()
 
 import rospy
-from std_msgs.msg import Int8, Float64
+from std_msgs.msg import Int8, Int16, Float64
 
 
 class Robot:
@@ -27,6 +27,8 @@ class Robot:
         # subscriber
         rospy.Subscriber("motor/pwm/left", Int8, lambda msg: self.g.set_motor_power(self.ML, msg.data))
         rospy.Subscriber("motor/pwm/right", Int8, lambda msg: self.g.set_motor_power(self.MR, msg.data))
+        rospy.Subscriber("motor/position/left", Int16, lambda msg: self.g.set_motor_position(self.ML, msg.data))
+        rospy.Subscriber("motor/position/right", Int16, lambda msg: self.g.set_motor_position(self.MR, msg.data))
 
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
@@ -40,6 +42,7 @@ class Robot:
 
             rate.sleep()
 
+        self.g.reset_all()
 
 
 if __name__ == '__main__':
