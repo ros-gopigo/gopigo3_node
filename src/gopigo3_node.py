@@ -18,6 +18,8 @@ class Robot:
     # short variables
     ML = gopigo3.GoPiGo3.MOTOR_LEFT
     MR = gopigo3.GoPiGo3.MOTOR_RIGHT
+    S1 = gopigo3.GoPiGo3.SERVO_1
+    S2 = gopigo3.GoPiGo3.SERVO_2
 
     def __init__(self):
         # GoPiGo3 and ROS setup
@@ -36,6 +38,8 @@ class Robot:
         rospy.Subscriber("motor/pwm/right", Int8, lambda msg: self.g.set_motor_power(self.MR, msg.data))
         rospy.Subscriber("motor/position/left", Int16, lambda msg: self.g.set_motor_position(self.ML, msg.data))
         rospy.Subscriber("motor/position/right", Int16, lambda msg: self.g.set_motor_position(self.MR, msg.data))
+        rospy.Subscriber("servo/1", Int16, lambda msg: self.g.set_servo(self.S1, msg.data))
+        rospy.Subscriber("servo/2", Int16, lambda msg: self.g.set_servo(self.S2, msg.data))
 
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
