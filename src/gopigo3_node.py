@@ -22,6 +22,13 @@ class Robot:
     def __init__(self):
         # GoPiGo3 and ROS setup
         self.g = gopigo3.GoPiGo3()
+        print("GoPiGo3 info:")
+        print("Manufacturer    : ", self.g.get_manufacturer())
+        print("Board           : ", self.g.get_board())
+        print("Serial Number   : ", self.g.get_id())
+        print("Hardware version: ", self.g.get_version_hardware())
+        print("Firmware version: ", self.g.get_version_firmware())
+
         rospy.init_node("gopigo3")
 
         # subscriber
@@ -33,12 +40,14 @@ class Robot:
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
         self.pub_enc_r = rospy.Publisher('motor/encoder/right', Float64, queue_size=10)
+        self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
 
         # main loop
         rate = rospy.Rate(10)   # in Hz
         while not rospy.is_shutdown():
             self.pub_enc_l.publish(Float64(data=self.g.get_motor_encoder(self.ML)))
             self.pub_enc_r.publish(Float64(data=self.g.get_motor_encoder(self.MR)))
+            self.pub_battery.publish(Float64(data=self.g.get_voltage_battery()))
 
             rate.sleep()
 
