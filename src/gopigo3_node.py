@@ -25,8 +25,8 @@ class Robot:
         rospy.init_node("gopigo3")
 
         # subscriber
-        rospy.Subscriber("motor/pwm/left", Int8, self.on_motor_pwm_left)
-        rospy.Subscriber("motor/pwm/right", Int8, self.on_motor_pwm_right)
+        rospy.Subscriber("motor/pwm/left", Int8, lambda msg: self.g.set_motor_power(self.ML, msg.data))
+        rospy.Subscriber("motor/pwm/right", Int8, lambda msg: self.g.set_motor_power(self.MR, msg.data))
 
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
@@ -40,11 +40,6 @@ class Robot:
 
             rate.sleep()
 
-    def on_motor_pwm_left(self, msg):
-        self.g.set_motor_power(self.ML, msg.data)
-
-    def on_motor_pwm_right(self, msg):
-        self.g.set_motor_power(self.MR, msg.data)
 
 
 if __name__ == '__main__':
