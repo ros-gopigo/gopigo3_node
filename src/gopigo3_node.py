@@ -13,6 +13,8 @@ except IOError as e:
 import rospy
 from std_msgs.msg import UInt8, Int8, Int16, Float64
 from std_msgs.msg import ColorRGBA
+from std_msgs.msg import Header
+from gopigo3_node.msg import MotorStatusLR, MotorStatus
 
 
 class Robot:
@@ -57,6 +59,7 @@ class Robot:
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
         self.pub_enc_r = rospy.Publisher('motor/encoder/right', Float64, queue_size=10)
         self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
+        self.pub_motor_status = rospy.Publisher('motor/status', MotorStatusLR, queue_size=10)
 
         # main loop
         rate = rospy.Rate(10)   # in Hz
@@ -64,6 +67,15 @@ class Robot:
             self.pub_enc_l.publish(Float64(data=self.g.get_motor_encoder(self.ML)))
             self.pub_enc_r.publish(Float64(data=self.g.get_motor_encoder(self.MR)))
             self.pub_battery.publish(Float64(data=self.g.get_voltage_battery()))
+
+            # publish motor status, including encoder value
+            (flags, power, encoder, speed) = self.g.get_motor_status(self.ML)
+            status_left = MotorStatus(low_voltage=(flags & (1<<0)), overloaded=(flags & (1<<1)),
+                                      power=power, encoder=encoder, speed=speed)
+            (flags, power, encoder, speed) = self.g.get_motor_status(self.MR)
+            status_right = MotorStatus(low_voltage=(flags & (1<<0)), overloaded=(flags & (1<<1)),
+                                      power=power, encoder=encoder, speed=speed)
+            self.pub_motor_status.publish(MotorStatusLR(header=Header(stamp=rospy.Time.now()), left=status_left, right=status_right))
 
             rate.sleep()
 
