@@ -11,7 +11,8 @@ except IOError as e:
     sys.exit()
 
 import rospy
-from std_msgs.msg import Int8, Int16, Float64
+from std_msgs.msg import UInt8, Int8, Int16, Float64
+from std_msgs.msg import ColorRGBA
 
 
 class Robot:
@@ -20,6 +21,10 @@ class Robot:
     MR = gopigo3.GoPiGo3.MOTOR_RIGHT
     S1 = gopigo3.GoPiGo3.SERVO_1
     S2 = gopigo3.GoPiGo3.SERVO_2
+    BL = gopigo3.GoPiGo3.LED_BLINKER_LEFT
+    BR = gopigo3.GoPiGo3.LED_BLINKER_RIGHT
+    EL = gopigo3.GoPiGo3.LED_EYE_LEFT
+    ER = gopigo3.GoPiGo3.LED_EYE_RIGHT
 
     def __init__(self):
         # GoPiGo3 and ROS setup
@@ -42,6 +47,11 @@ class Robot:
         rospy.Subscriber("motor/position/right", Int16, lambda msg: self.g.set_motor_position(self.MR, msg.data))
         rospy.Subscriber("servo/1", Int16, lambda msg: self.g.set_servo(self.S1, msg.data))
         rospy.Subscriber("servo/2", Int16, lambda msg: self.g.set_servo(self.S2, msg.data))
+
+        rospy.Subscriber("led/blinker/left", UInt8, lambda msg: self.g.set_led(self.BL, msg.data))
+        rospy.Subscriber("led/blinker/right", UInt8, lambda msg: self.g.set_led(self.BR, msg.data))
+        rospy.Subscriber("led/eye/left", ColorRGBA, lambda c: self.g.set_led(self.EL, int(c.r*255), int(c.g*255), int(c.b*255)))
+        rospy.Subscriber("led/eye/right", ColorRGBA, lambda c: self.g.set_led(self.ER, int(c.r*255), int(c.g*255), int(c.b*255)))
 
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
