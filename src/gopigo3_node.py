@@ -14,7 +14,9 @@ import rospy
 from std_msgs.msg import UInt8, Int8, Int16, Float64
 from std_msgs.msg import ColorRGBA
 from std_msgs.msg import Header
+from std_srvs.srv import Trigger
 from gopigo3_node.msg import MotorStatusLR, MotorStatus
+from gopigo3_node.srv import SPI, SPIResponse
 
 
 class Robot:
@@ -60,6 +62,10 @@ class Robot:
         self.pub_enc_r = rospy.Publisher('motor/encoder/right', Float64, queue_size=10)
         self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
         self.pub_motor_status = rospy.Publisher('motor/status', MotorStatusLR, queue_size=10)
+
+        # services
+        self.srv_reset = rospy.Service('reset', Trigger, lambda : self.g.reset_all())
+        self.srv_spi = rospy.Service('spi', SPI, lambda req: SPIResponse(data_in=self.g.spi_transfer_array(req.data_out)))
 
         # main loop
         rate = rospy.Rate(10)   # in Hz
