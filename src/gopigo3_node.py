@@ -89,4 +89,7 @@ class Robot:
 
 
 if __name__ == '__main__':
-    r = Robot()
+    try:
+        Robot()
+    except rospy.ROSInterruptException:
+        pass
