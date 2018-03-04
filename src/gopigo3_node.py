@@ -16,8 +16,14 @@ from std_msgs.msg import ColorRGBA
 from std_msgs.msg import Header
 from std_srvs.srv import Trigger
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseWithCovariance, TwistWithCovariance
+from geometry_msgs.msg import TransformStamped
+from nav_msgs.msg import Odometry
 from gopigo3_node.msg import MotorStatusLR, MotorStatus
 from gopigo3_node.srv import SPI, SPIResponse
+from tf.transformations import quaternion_about_axis
+from tf.broadcaster import TransformBroadcaster
+import numpy as np
 
 
 class Robot:
@@ -43,7 +49,11 @@ class Robot:
         print("Hardware version: ", self.g.get_version_hardware())
         print("Firmware version: ", self.g.get_version_firmware())
 
+        self.reset_odometry()
+
         rospy.init_node("gopigo3")
+
+        self.br = TransformBroadcaster()
 
         # subscriber
         rospy.Subscriber("motor/dps/left", Int16, lambda msg: self.g.set_motor_dps(self.ML, msg.data))
@@ -66,9 +76,10 @@ class Robot:
         self.pub_enc_r = rospy.Publisher('motor/encoder/right', Float64, queue_size=10)
         self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
         self.pub_motor_status = rospy.Publisher('motor/status', MotorStatusLR, queue_size=10)
+        self.pub_odometry = rospy.Publisher("odometry", Odometry, queue_size=10)
 
         # services
-        self.srv_reset = rospy.Service('reset', Trigger, lambda : self.g.reset_all())
+        self.srv_reset = rospy.Service('reset', Trigger, self.reset)
         self.srv_spi = rospy.Service('spi', SPI, lambda req: SPIResponse(data_in=self.g.spi_transfer_array(req.data_out)))
 
         # main loop
@@ -87,9 +98,28 @@ class Robot:
                                       power=power, encoder=encoder, speed=speed)
             self.pub_motor_status.publish(MotorStatusLR(header=Header(stamp=rospy.Time.now()), left=status_left, right=status_right))
 
+            # publish current pose
+            (odom, transform)= self.odometry(status_left, status_right)
+            self.pub_odometry.publish(odom)
+            self.br.sendTransformMessage(transform)
+
             rate.sleep()
 
         self.g.reset_all()
+        self.g.offset_motor_encoder(self.ML, self.g.get_motor_encoder(self.ML))
+        self.g.offset_motor_encoder(self.MR, self.g.get_motor_encoder(self.MR))
+
+    def reset_odometry(self):
+        self.g.offset_motor_encoder(self.ML, self.g.get_motor_encoder(self.ML))
+        self.g.offset_motor_encoder(self.MR, self.g.get_motor_encoder(self.MR))
+        self.last_encoders = {'l': 0, 'r': 0}
+        self.pose = PoseWithCovariance()
+        self.pose.pose.orientation.w = 1
+
+    def reset(self, req):
+        self.g.reset_all()
+        self.reset_odometry()
+        return [True, ""]
 
     def on_twist(self, twist):
         # Compute left and right wheel speed from a twist, which is the combination
@@ -107,6 +137,69 @@ class Robot:
 
         self.g.set_motor_dps(self.ML, left_speed/self.CIRCUMFERENCE*360)
         self.g.set_motor_dps(self.MR, right_speed/self.CIRCUMFERENCE*360)
+
+    def odometry(self, left, right):
+        lspeed = left.speed / 360.0 * self.CIRCUMFERENCE
+        rspeed = right.speed / 360.0 * self.CIRCUMFERENCE
+        # Compute current linear and angular speed from wheel speed
+        twist = TwistWithCovariance()
+        twist.twist.linear.x = (rspeed + lspeed) / 2.0
+        twist.twist.angular.z = (rspeed - lspeed) / self.WIDTH
+
+        # Compute position and orientation from travelled distance per wheel
+        # http://www8.cs.umu.se/kurser/5DV122/HT13/material/Hellstrom-ForwardKinematics.pdf
+        # position change per wheel in meter
+        dl = (left.encoder - self.last_encoders['l']) / 360.0 * self.CIRCUMFERENCE
+        dr = (right.encoder - self.last_encoders['r']) / 360.0 * self.CIRCUMFERENCE
+
+        # set previous encoder state
+        self.last_encoders['l'] = left.encoder
+        self.last_encoders['r'] = right.encoder
+
+        angle = (dr-dl) / self.WIDTH
+        linear = 0.5*(dl+dr)
+        if dr!=dl:
+            radius = self.WIDTH/2.0 * (dl+dr) / (dr-dl)
+        else:
+            radius = 0
+
+        # old state
+        old_angle = 2*np.arccos(self.pose.pose.orientation.w)
+        old_pos = np.array([self.pose.pose.position.x, self.pose.pose.position.y])
+
+        # update state
+        new_angle = old_angle+angle
+        new_q = quaternion_about_axis(new_angle, (0, 0, 1))
+        new_pos = np.zeros((2,))
+
+        if abs(angle) < 1e-6:
+            direction = old_angle + angle * 0.5
+            dx = linear * np.cos(direction)
+            dy = linear * np.sin(direction)
+        else:
+            dx = + radius * (np.sin(new_angle) - np.sin(old_angle))
+            dy = - radius * (np.cos(new_angle) - np.cos(old_angle))
+
+        new_pos[0] = old_pos[0] + dx
+        new_pos[1] = old_pos[1] + dy
+
+        self.pose.pose.orientation.x = new_q[0]
+        self.pose.pose.orientation.y = new_q[1]
+        self.pose.pose.orientation.z = new_q[2]
+        self.pose.pose.orientation.w = new_q[3]
+        self.pose.pose.position.x = new_pos[0]
+        self.pose.pose.position.y = new_pos[1]
+
+        odom = Odometry(header=Header(frame_id="world"), child_frame_id="gopigo",
+                        pose=self.pose, twist=twist)
+
+        transform = TransformStamped(header=Header(frame_id="world"), child_frame_id="gopigo")
+        transform.transform.translation.x = self.pose.pose.position.x
+        transform.transform.translation.y = self.pose.pose.position.y
+        transform.transform.translation.z = self.pose.pose.position.z
+        transform.transform.rotation = self.pose.pose.orientation
+
+        return odom, transform
 
 
 if __name__ == '__main__':
