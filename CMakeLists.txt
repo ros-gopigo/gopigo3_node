@@ -182,7 +182,7 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-install(PROGRAMS src/gopigo3_node.py
+install(PROGRAMS src/gopigo3_driver.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
