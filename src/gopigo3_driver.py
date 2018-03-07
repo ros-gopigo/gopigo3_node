@@ -36,6 +36,7 @@ class Robot:
     BR = gopigo3.GoPiGo3.LED_BLINKER_RIGHT
     EL = gopigo3.GoPiGo3.LED_EYE_LEFT
     ER = gopigo3.GoPiGo3.LED_EYE_RIGHT
+    EW = gopigo3.GoPiGo3.LED_WIFI
     WIDTH = gopigo3.GoPiGo3.WHEEL_BASE_WIDTH * 1e-3
     CIRCUMFERENCE = gopigo3.GoPiGo3.WHEEL_CIRCUMFERENCE * 1e-3
 
@@ -70,6 +71,7 @@ class Robot:
         rospy.Subscriber("led/blinker/right", UInt8, lambda msg: self.g.set_led(self.BR, msg.data))
         rospy.Subscriber("led/eye/left", ColorRGBA, lambda c: self.g.set_led(self.EL, int(c.r*255), int(c.g*255), int(c.b*255)))
         rospy.Subscriber("led/eye/right", ColorRGBA, lambda c: self.g.set_led(self.ER, int(c.r*255), int(c.g*255), int(c.b*255)))
+        rospy.Subscriber("led/wifi", ColorRGBA, lambda c: self.g.set_led(self.EW, int(c.r * 255), int(c.g * 255), int(c.b * 255)))
 
         # publisher
         self.pub_enc_l = rospy.Publisher('motor/encoder/left', Float64, queue_size=10)
