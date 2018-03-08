@@ -24,6 +24,8 @@ from gopigo3_node.srv import SPI, SPIResponse
 from tf.transformations import quaternion_about_axis
 from tf.broadcaster import TransformBroadcaster
 import numpy as np
+import os
+import time
 
 
 class Robot:
@@ -40,7 +42,26 @@ class Robot:
     WIDTH = gopigo3.GoPiGo3.WHEEL_BASE_WIDTH * 1e-3
     CIRCUMFERENCE = gopigo3.GoPiGo3.WHEEL_CIRCUMFERENCE * 1e-3
 
+    POWER_PIN = "23"
+
     def __init__(self):
+        #### GoPiGo3 power management
+        # export pin
+        if not os.path.isdir("/sys/class/gpio/gpio"+self.POWER_PIN):
+            gpio_export = os.open("/sys/class/gpio/export", os.O_WRONLY)
+            os.write(gpio_export, self.POWER_PIN.encode())
+            os.close(gpio_export)
+        time.sleep(0.1)
+
+        # set pin direction
+        gpio_direction = os.open("/sys/class/gpio/gpio"+self.POWER_PIN+"/direction", os.O_WRONLY)
+        os.write(gpio_direction, "out".encode())
+        os.close(gpio_direction)
+
+        # activate power management
+        self.gpio_value = os.open("/sys/class/gpio/gpio"+self.POWER_PIN+"/value", os.O_WRONLY)
+        os.write(self.gpio_value, "1".encode())
+
         # GoPiGo3 and ROS setup
         self.g = gopigo3.GoPiGo3()
         print("GoPiGo3 info:")
@@ -83,6 +104,8 @@ class Robot:
         # services
         self.srv_reset = rospy.Service('reset', Trigger, self.reset)
         self.srv_spi = rospy.Service('spi', SPI, lambda req: SPIResponse(data_in=self.g.spi_transfer_array(req.data_out)))
+        self.srv_pwr_on = rospy.Service('power/on', Trigger, self.power_on)
+        self.srv_pwr_off = rospy.Service('power/off', Trigger, self.power_off)
 
         # main loop
         rate = rospy.Rate(10)   # in Hz
@@ -111,6 +134,16 @@ class Robot:
         self.g.offset_motor_encoder(self.ML, self.g.get_motor_encoder(self.ML))
         self.g.offset_motor_encoder(self.MR, self.g.get_motor_encoder(self.MR))
 
+        # deactivate power management
+        os.write(self.gpio_value, "0".encode())
+        os.close(self.gpio_value)
+
+        # unexport pin
+        if os.path.isdir("/sys/class/gpio/gpio" + self.POWER_PIN):
+            gpio_export = os.open("/sys/class/gpio/unexport", os.O_WRONLY)
+            os.write(gpio_export, self.POWER_PIN.encode())
+            os.close(gpio_export)
+
     def reset_odometry(self):
         self.g.offset_motor_encoder(self.ML, self.g.get_motor_encoder(self.ML))
         self.g.offset_motor_encoder(self.MR, self.g.get_motor_encoder(self.MR))
@@ -122,6 +155,14 @@ class Robot:
         self.g.reset_all()
         self.reset_odometry()
         return [True, ""]
+
+    def power_on(self, req):
+        os.write(self.gpio_value, "1".encode())
+        return [True, "Power ON"]
+
+    def power_off(self, req):
+        os.write(self.gpio_value, "0".encode())
+        return [True, "Power OFF"]
 
     def on_twist(self, twist):
         # Compute left and right wheel speed from a twist, which is the combination
