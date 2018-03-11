@@ -15,6 +15,7 @@ from std_msgs.msg import UInt8, Int8, Int16, Float64
 from std_msgs.msg import ColorRGBA
 from std_msgs.msg import Header
 from std_srvs.srv import Trigger
+from geometry_msgs.msg import Twist
 from gopigo3_node.msg import MotorStatusLR, MotorStatus
 from gopigo3_node.srv import SPI, SPIResponse
 
@@ -29,6 +30,8 @@ class Robot:
     BR = gopigo3.GoPiGo3.LED_BLINKER_RIGHT
     EL = gopigo3.GoPiGo3.LED_EYE_LEFT
     ER = gopigo3.GoPiGo3.LED_EYE_RIGHT
+    WIDTH = gopigo3.GoPiGo3.WHEEL_BASE_WIDTH * 1e-3
+    CIRCUMFERENCE = gopigo3.GoPiGo3.WHEEL_CIRCUMFERENCE * 1e-3
 
     def __init__(self):
         # GoPiGo3 and ROS setup
@@ -51,6 +54,7 @@ class Robot:
         rospy.Subscriber("motor/position/right", Int16, lambda msg: self.g.set_motor_position(self.MR, msg.data))
         rospy.Subscriber("servo/1", Int16, lambda msg: self.g.set_servo(self.S1, msg.data))
         rospy.Subscriber("servo/2", Int16, lambda msg: self.g.set_servo(self.S2, msg.data))
+        rospy.Subscriber("cmd_vel", Twist, self.on_twist)
 
         rospy.Subscriber("led/blinker/left", UInt8, lambda msg: self.g.set_led(self.BL, msg.data))
         rospy.Subscriber("led/blinker/right", UInt8, lambda msg: self.g.set_led(self.BR, msg.data))
@@ -86,6 +90,23 @@ class Robot:
             rate.sleep()
 
         self.g.reset_all()
+
+    def on_twist(self, twist):
+        # Compute left and right wheel speed from a twist, which is the combination
+        # of a linear speed (m/s) and an angular speed (rad/s).
+        # In the coordinate frame of the GoPiGo3, the x-axis is pointing forward
+        # and the z-axis is pointing upwards. Since the GoPiGo3 is only moving within
+        # the x-y-plane, we are only using the linear velocity in x direction (forward)
+        # and the angular velocity around the z-axis (yaw).
+        # source:
+        #   https://opencurriculum.org/5481/circular-motion-linear-and-angular-speed/
+        #   http://www.euclideanspace.com/physics/kinematics/combinedVelocity/index.htm
+
+        right_speed = twist.linear.x + twist.angular.z * self.WIDTH / 2
+        left_speed = twist.linear.x - twist.angular.z * self.WIDTH / 2
+
+        self.g.set_motor_dps(self.ML, left_speed/self.CIRCUMFERENCE*360)
+        self.g.set_motor_dps(self.MR, right_speed/self.CIRCUMFERENCE*360)
 
 
 if __name__ == '__main__':
