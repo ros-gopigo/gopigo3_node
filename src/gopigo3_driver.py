@@ -110,17 +110,19 @@ class Robot:
         # main loop
         rate = rospy.Rate(10)   # in Hz
         while not rospy.is_shutdown():
-            self.pub_enc_l.publish(Float64(data=self.g.get_motor_encoder(self.ML)))
-            self.pub_enc_r.publish(Float64(data=self.g.get_motor_encoder(self.MR)))
             self.pub_battery.publish(Float64(data=self.g.get_voltage_battery()))
 
             # publish motor status, including encoder value
             (flags, power, encoder, speed) = self.g.get_motor_status(self.ML)
             status_left = MotorStatus(low_voltage=(flags & (1<<0)), overloaded=(flags & (1<<1)),
                                       power=power, encoder=encoder, speed=speed)
+            self.pub_enc_l.publish(Float64(data=encoder))
+
             (flags, power, encoder, speed) = self.g.get_motor_status(self.MR)
             status_right = MotorStatus(low_voltage=(flags & (1<<0)), overloaded=(flags & (1<<1)),
                                       power=power, encoder=encoder, speed=speed)
+            self.pub_enc_r.publish(Float64(data=encoder))
+
             self.pub_motor_status.publish(MotorStatusLR(header=Header(stamp=rospy.Time.now()), left=status_left, right=status_right))
 
             # publish current pose
