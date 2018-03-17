@@ -108,7 +108,7 @@ class Robot:
         self.srv_pwr_off = rospy.Service('power/off', Trigger, self.power_off)
 
         # main loop
-        rate = rospy.Rate(10)   # in Hz
+        rate = rospy.Rate(rospy.get_param('hz', 30))   # in Hz
         while not rospy.is_shutdown():
             self.pub_battery.publish(Float64(data=self.g.get_voltage_battery()))
 
