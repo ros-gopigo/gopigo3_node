@@ -5,6 +5,8 @@ import rospy
 from di_sensors.inertial_measurement_unit import InertialMeasurementUnit
 from sensor_msgs.msg import Imu, Temperature, MagneticField
 from std_msgs.msg import Header
+from tf.broadcaster import TransformBroadcaster
+from geometry_msgs.msg import TransformStamped
 import math
 
 
@@ -17,6 +19,8 @@ def main():
     pub_imu = rospy.Publisher("~imu", Imu, queue_size=10)
     pub_temp = rospy.Publisher("~temp", Temperature, queue_size=10)
     pub_magn = rospy.Publisher("~magnetometer", MagneticField, queue_size=10)
+
+    br = TransformBroadcaster()
 
     msg_imu = Imu()
     msg_temp = Temperature()
@@ -57,6 +61,10 @@ def main():
         msg_magn.magnetic_field.y = mag[1]*1e-6
         msg_magn.magnetic_field.z = mag[2]*1e-6
         pub_magn.publish(msg_magn)
+
+        transform = TransformStamped(header=Header(frame_id="world"), child_frame_id="IMU")
+        transform.transform.rotation = msg_imu.orientation
+        br.sendTransformMessage(transform)
 
         rate.sleep()
 
