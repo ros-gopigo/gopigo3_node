@@ -19,6 +19,7 @@ from geometry_msgs.msg import Twist
 from geometry_msgs.msg import PoseWithCovariance, TwistWithCovariance
 from geometry_msgs.msg import TransformStamped
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import JointState
 from gopigo3_node.msg import MotorStatusLR, MotorStatus
 from gopigo3_node.srv import SPI, SPIResponse
 from tf.transformations import quaternion_about_axis
@@ -43,6 +44,7 @@ class Robot:
     CIRCUMFERENCE = gopigo3.GoPiGo3.WHEEL_CIRCUMFERENCE * 1e-3
 
     POWER_PIN = "23"
+    PULSE_RANGE = [575, 2425]
 
     def __init__(self):
         #### GoPiGo3 power management
@@ -84,8 +86,10 @@ class Robot:
         rospy.Subscriber("motor/pwm/right", Int8, lambda msg: self.g.set_motor_power(self.MR, msg.data))
         rospy.Subscriber("motor/position/left", Int16, lambda msg: self.g.set_motor_position(self.ML, msg.data))
         rospy.Subscriber("motor/position/right", Int16, lambda msg: self.g.set_motor_position(self.MR, msg.data))
-        rospy.Subscriber("servo/1", Int16, lambda msg: self.g.set_servo(self.S1, msg.data))
-        rospy.Subscriber("servo/2", Int16, lambda msg: self.g.set_servo(self.S2, msg.data))
+        rospy.Subscriber("servo/pulse_width/1", Int16, lambda msg: self.g.set_servo(self.S1, msg.data))
+        rospy.Subscriber("servo/pulse_width/2", Int16, lambda msg: self.g.set_servo(self.S2, msg.data))
+        rospy.Subscriber("servo/position/1", Float64, lambda msg: self.set_servo_angle(self.S1, msg.data))
+        rospy.Subscriber("servo/position/2", Float64, lambda msg: self.set_servo_angle(self.S2, msg.data))
         rospy.Subscriber("cmd_vel", Twist, self.on_twist)
 
         rospy.Subscriber("led/blinker/left", UInt8, lambda msg: self.g.set_led(self.BL, msg.data))
@@ -100,6 +104,7 @@ class Robot:
         self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
         self.pub_motor_status = rospy.Publisher('motor/status', MotorStatusLR, queue_size=10)
         self.pub_odometry = rospy.Publisher("odometry", Odometry, queue_size=10)
+        self.pub_joints = rospy.Publisher("joint_state", JointState, queue_size=10)
 
         # services
         self.srv_reset = rospy.Service('reset', Trigger, self.reset)
@@ -145,6 +150,20 @@ class Robot:
             gpio_export = os.open("/sys/class/gpio/unexport", os.O_WRONLY)
             os.write(gpio_export, self.POWER_PIN.encode())
             os.close(gpio_export)
+
+    def set_servo_angle(self, servo, angle):
+        # map angle from [-pi/2,+pi/2] to pulse width [pulse_min,pulse_max]
+        angle = np.clip(angle, -np.pi/2, np.pi/2)
+        # normalise to range [0,1]
+        pos_norm = (1+angle/(np.pi/2))/2.0
+        pulse = self.PULSE_RANGE[0] + pos_norm * (self.PULSE_RANGE[1]-self.PULSE_RANGE[0])
+        # set servo position by pulse width
+        pulse = np.rint(pulse).astype(np.int)
+        pulse = np.clip(pulse, self.PULSE_RANGE[0], self.PULSE_RANGE[1])
+        self.g.set_servo(servo, pulse)
+        # publish servo position as joint
+        servo_names = {self.S1: "servo1", self.S2: "servo2"}
+        self.pub_joints.publish(JointState(name=[servo_names[servo]], position=[angle]))
 
     def reset_odometry(self):
         self.g.offset_motor_encoder(self.ML, self.g.get_motor_encoder(self.ML))
