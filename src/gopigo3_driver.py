@@ -254,10 +254,10 @@ class Robot:
         self.pose.pose.position.x = new_pos[0]
         self.pose.pose.position.y = new_pos[1]
 
-        odom = Odometry(header=Header(frame_id="world"), child_frame_id="gopigo",
+        odom = Odometry(header=Header(stamp=rospy.Time.now(), frame_id="world"), child_frame_id="gopigo",
                         pose=self.pose, twist=twist)
 
-        transform = TransformStamped(header=Header(frame_id="world"), child_frame_id="gopigo")
+        transform = TransformStamped(header=Header(stamp=rospy.Time.now(), frame_id="world"), child_frame_id="gopigo")
         transform.transform.translation.x = self.pose.pose.position.x
         transform.transform.translation.y = self.pose.pose.position.y
         transform.transform.translation.z = self.pose.pose.position.z

@@ -25,7 +25,7 @@ def main():
     msg_imu = Imu()
     msg_temp = Temperature()
     msg_magn = MagneticField()
-    hdr = Header(frame_id="IMU")
+    hdr = Header(stamp=rospy.Time.now(), frame_id="IMU")
 
     rate = rospy.Rate(rospy.get_param('~hz', 30))
     while not rospy.is_shutdown():
@@ -62,7 +62,7 @@ def main():
         msg_magn.magnetic_field.z = mag[2]*1e-6
         pub_magn.publish(msg_magn)
 
-        transform = TransformStamped(header=Header(frame_id="world"), child_frame_id="IMU")
+        transform = TransformStamped(header=Header(stamp=rospy.Time.now(), frame_id="world"), child_frame_id="IMU")
         transform.transform.rotation = msg_imu.orientation
         br.sendTransformMessage(transform)
 
