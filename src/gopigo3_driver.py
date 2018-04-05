@@ -111,7 +111,9 @@ class Robot:
         self.srv_spi = rospy.Service('spi', SPI, lambda req: SPIResponse(data_in=self.g.spi_transfer_array(req.data_out)))
         self.srv_pwr_on = rospy.Service('power/on', Trigger, self.power_on)
         self.srv_pwr_off = rospy.Service('power/off', Trigger, self.power_off)
-
+        
+        self.old_angle = 0
+        
         # main loop
         rate = rospy.Rate(rospy.get_param('hz', 30))   # in Hz
         while not rospy.is_shutdown():
@@ -228,7 +230,7 @@ class Robot:
             radius = 0
 
         # old state
-        old_angle = 2*np.arccos(self.pose.pose.orientation.w)
+        old_angle = self.old_angle
         old_pos = np.array([self.pose.pose.position.x, self.pose.pose.position.y])
 
         # update state
@@ -262,7 +264,9 @@ class Robot:
         transform.transform.translation.y = self.pose.pose.position.y
         transform.transform.translation.z = self.pose.pose.position.z
         transform.transform.rotation = self.pose.pose.orientation
-
+        
+        self.old_angle = new_angle
+        
         return odom, transform
 
 
