@@ -232,8 +232,10 @@ class Robot:
         old_pos = np.array([self.pose.pose.position.x, self.pose.pose.position.y])
 
         # update state
-        new_angle = old_angle+angle
+        new_angle = (old_angle+angle) % (2*np.pi)
         new_q = quaternion_about_axis(new_angle, (0, 0, 1))
+        new_angle2 = 2 * np.arccos(self.pose.pose.orientation.w)
+        print("new_angle2", new_angle2)
         new_pos = np.zeros((2,))
 
         if abs(angle) < 1e-6:
