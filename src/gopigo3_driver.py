@@ -103,7 +103,7 @@ class Robot:
         self.pub_enc_r = rospy.Publisher('motor/encoder/right', Float64, queue_size=10)
         self.pub_battery = rospy.Publisher('battery_voltage', Float64, queue_size=10)
         self.pub_motor_status = rospy.Publisher('motor/status', MotorStatusLR, queue_size=10)
-        self.pub_odometry = rospy.Publisher("odometry", Odometry, queue_size=10)
+        self.pub_odometry = rospy.Publisher("odom", Odometry, queue_size=10)
         self.pub_joints = rospy.Publisher("joint_state", JointState, queue_size=10)
 
         # services
@@ -256,7 +256,7 @@ class Robot:
         self.pose.pose.position.x = new_pos[0]
         self.pose.pose.position.y = new_pos[1]
 
-        odom = Odometry(header=Header(stamp=rospy.Time.now(), frame_id="world"), child_frame_id="gopigo",
+        odom = Odometry(header=Header(stamp=rospy.Time.now(), frame_id="odom"), child_frame_id="base_link",
                         pose=self.pose, twist=twist)
 
         transform = TransformStamped(header=Header(stamp=rospy.Time.now(), frame_id="world"), child_frame_id="gopigo")
