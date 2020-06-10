@@ -13,7 +13,7 @@ import math
 def main():
     rospy.init_node("imu")
 
-    port = rospy.get_param("~port", "GPG3_AD1")
+    port = rospy.get_param("~port", "RPI_1")
     sensor = InertialMeasurementUnit(bus=port)
 
     pub_imu = rospy.Publisher("~imu", Imu, queue_size=10)
